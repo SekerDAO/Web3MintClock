@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import {InfuraProvider, JsonRpcProvider} from "@ethersproject/providers"
 import {ethers, BigNumber} from "ethers"
 import Mintathon from "./Mintathon.json";
+import Crescendo from "./Crescendo.json";
 
 // on start
 // take start current time - start time = totalStreamTime
@@ -14,13 +15,16 @@ function App() {
     const [hours, setHours] = useState(0);
     const [minutes, setMinutes] = useState(0);
     const [seconds, setSeconds] = useState(0);
+    const [price, setPrice] = useState(0);
 
     const contractAddress = "0x84AcbB49248Fd8aC27cB9FB86d58C74151c49cc2";
-    const startTime = 1676126336
-    const timePerMint = 3600 // seconds
+    const croscendoAddress = "0xD14C1C8C979562e371Cf13808Ff14358c7650560";
+    const startTime = 1683064800
+    const timePerMint = 1200 // seconds
     let currentMints = 0
     let newMints = 1
     let timeRemaining = 0
+    let currentPrice = 0.004
 
     const network = process.env.ETHEREUM_NETWORK;
     const provider = new InfuraProvider("goerli", {
@@ -36,13 +40,25 @@ function App() {
       provider
     )
 
+    const crescendoContract = new ethers.Contract(
+      croscendoAddress,
+      Crescendo.abi,
+      provider
+    )
+
     async function getMints() {
       console.log("hello")
-      newMints = BigNumber.from(await mintathonContract.totalSupply()).toNumber()
-      if(newMints > currentMints) {
-        console.log("new mints foound, updating clock state")
+      //newMints = BigNumber.from(await mintathonContract.totalSupply()).toNumber()
+      newMints = BigNumber.from(await crescendoContract.totalSupply(0)).toNumber()
+
+      if(newMints != currentMints) {
+        console.log("new mints found, updating clock state")
         currentMints = newMints
         setMinted(newMints)
+        currentPrice = await crescendoContract.calculateCurvedMintReturn(1, 0)
+        currentPrice = ethers.utils.formatEther(currentPrice)
+        console.log(currentPrice)
+        setPrice(currentPrice)
       }
       console.log(newMints)
     }
@@ -75,9 +91,10 @@ function App() {
     }, []);
 
     return (
-      <div>
-        <h1>&nbsp; {hours} : {minutes} : {seconds}</h1>
-        <h1>&nbsp; Total Minted: {minted}</h1>
+      <div className="clock">
+        <h1 className="digital">{hours} : {minutes} : {seconds}</h1>
+        <h1 className="message">Total Minted: {minted}</h1>
+        <h1 className="message">Price: {price} Ξ</h1>
       </div>
     );
 }
